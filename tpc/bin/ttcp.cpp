@@ -136,8 +136,6 @@ void receive(const Options& option) {
         }
         payload->length = ntohl(payload->length);
 
-        printf("payload->length = %d\n", payload->length);
-
         assert(payload->length == sessionMessage.length);
         if (stream->receiveAll(payload->data, payload->length) != payload->length) {
             perror("read payload data");
