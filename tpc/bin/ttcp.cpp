@@ -76,8 +76,6 @@ void transmit(const Options& option) {
 
     payload->length = htonl(option.length);
 
-    printf("transmit payload->length: %d\n", payload->length);
-
     for(int i = 0; i < option.length; i++) {
         payload->data[i] = "0123456789ABCDEF"[i % 16];
     }
