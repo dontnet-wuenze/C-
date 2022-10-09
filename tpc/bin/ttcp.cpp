@@ -38,7 +38,7 @@ double now() {
     return tv.tv_sec + tv.tv_usec / 1000000.0;
 }
 
-void transmit(Options option) {
+void transmit(const Options& option) {
     InetAddress addr;
     if(!InetAddress::resolve(option.host, option.port, &addr)) {
         printf("Unable to resolve %s\n", option.host.c_str());
@@ -70,12 +70,15 @@ void transmit(Options option) {
     }
 
     const int total_len = sizeof(int32_t) + option.length;
-    PayloadMessage* payload = (PayloadMessage*)malloc(total_len);
+    PayloadMessage* payload = static_cast<PayloadMessage*>(::malloc(total_len));
     std::unique_ptr<PayloadMessage, void(*)(void*)> freeIt(payload, ::free);
     assert(payload);
 
     payload->length = htonl(option.length);
-    for(int i = 0; i < payload->length; i++) {
+
+    printf("transmit payload->length: %d\n", payload->length);
+
+    for(int i = 0; i < option.length; i++) {
         payload->data[i] = "0123456789ABCDEF"[i % 16];
     }
 
@@ -84,6 +87,7 @@ void transmit(Options option) {
 
     for(int i = 0; i < option.number; i++) {
         int nw = stream->sendAll(payload, total_len);
+
         assert(nw == total_len);
 
         int ack = 0;
@@ -93,14 +97,13 @@ void transmit(Options option) {
         ack = ntohl(ack);
 
         assert(ack == option.length);
-
-        double elapsed = now() - start;
-        printf("%.3f seconds\n%.3f MiB/s\n", elapsed, total_mb / elapsed);
     }
 
+    double elapsed = now() - start;
+    printf("%.3f seconds\n%.3f MiB/s\n", elapsed, total_mb / elapsed);
 }
 
-void receive(Options option) {
+void receive(const Options& option) {
     Acceptor acceptor(InetAddress(option.port));
     TcpStreamPtr stream(acceptor.accept());
     if(!stream)
@@ -127,13 +130,13 @@ void receive(Options option) {
 
     for(int i = 0; i < sessionMessage.number; ++i) {
         payload->length = 0;
-        if(stream->receiveAll(&payload->length, sizeof(payload->length) != sizeof(payload->length))) {
+        if(stream->receiveAll(&payload->length, sizeof(payload->length)) != sizeof(payload->length)) {
             perror("read length");
             return;
         }
         payload->length = ntohl(payload->length);
 
-        printf("payload->length = %d", payload->length);
+        printf("payload->length = %d\n", payload->length);
 
         assert(payload->length == sessionMessage.length);
         if (stream->receiveAll(payload->data, payload->length) != payload->length) {
